@@ -59,6 +59,37 @@ class TestBestMatch(TestCase):
         best = exceptions.best_match([error])
         self.assertEqual(list(best.path), [0])
 
+    def test_iterator_context_links_children_to_parent(self):
+        """
+        context may be a one-shot iterator. Parents must still be assigned,
+        including for SchemaError, so absolute paths keep the parent prefix.
+        """
+
+        child = exceptions.ValidationError(
+            "child",
+            path=["name"],
+            schema_path=[0, "type"],
+        )
+        parent = exceptions.ValidationError(
+            "parent",
+            path=["record"],
+            schema_path=["properties", "record", "anyOf"],
+            context=iter([child]),
+        )
+        self.assertEqual(parent.context, [child])
+        self.assertIs(child.parent, parent)
+        self.assertEqual(child.json_path, "$.record.name")
+
+        schema_child = exceptions.SchemaError("child", path=["type"])
+        schema_parent = exceptions.SchemaError(
+            "parent",
+            path=["properties"],
+            context=iter([schema_child]),
+        )
+        self.assertEqual(schema_parent.context, [schema_child])
+        self.assertIs(schema_child.parent, schema_parent)
+        self.assertEqual(list(schema_child.absolute_path), ["properties", "type"])
+
     def test_hand_constructed_errors_with_context(self):
         """
         Errors constructed by hand need not have any schema path at all.

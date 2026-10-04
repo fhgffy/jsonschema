@@ -95,7 +95,10 @@ class _Error(Exception):
         self.parent = parent
         self._type_checker = type_checker
 
-        for error in context:
+        # Iterate the stored list. A one-shot iterator would already have been
+        # consumed by list(context), so the children would keep parent=None
+        # and absolute paths would drop the parent prefix (see #1584).
+        for error in self.context:
             error.parent = self
 
     def __repr__(self) -> str:
